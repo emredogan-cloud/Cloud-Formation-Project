@@ -1,0 +1,14 @@
+.aws-sam/
+
+__pycache__/
+*.pyc
+
+.env
+*.log
+
+# FOR Mac 
+.DS_Store
+
+samconfig.toml
+
+venv/

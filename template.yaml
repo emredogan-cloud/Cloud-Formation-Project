@@ -1,0 +1,40 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: AWS Orphan Resource Hunter 
+
+Globals:
+  Function:
+    Timeout: 10
+    MemorySize: 128
+
+Resources:
+
+  OrphanNotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: OrphanResourceAlerts
+      Subscription:
+        - Protocol: email
+          Endpoint: !Ref NotificationEmail
+
+  OrphanHunterFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: app.lambda_handler
+      Runtime: python3.12
+
+      Policies:
+        - AmazonEC2ReadOnlyAccess
+        - SNSPublishMessagePolicy:
+            TopicName: !GetAtt OrphanNotificationTopic.TopicName
+
+      Environment:
+        Variables:
+          SNS_TOPIC_ARN: !Ref OrphanNotificationTopic
+
+      Events:
+        CheckSchedule:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0 9 * * ? *)
