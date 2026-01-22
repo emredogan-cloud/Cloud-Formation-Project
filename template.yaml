@@ -1,14 +1,23 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: AWS Orphan Resource Hunter 
+Description: >
+  AWS Orphan Resource Hunter.
+  Scans for unused EBS volumes and notifies via SNS.
+
+Parameters:
+  NotificationEmail:
+    Type: String
+    Description: Email address to receive notifications about orphan resources.
+    Default: "admin@example.com"
 
 Globals:
   Function:
     Timeout: 10
     MemorySize: 128
+    LoggingConfig:
+      LogFormat: JSON
 
 Resources:
-
   OrphanNotificationTopic:
     Type: AWS::SNS::Topic
     Properties:
@@ -20,21 +29,30 @@ Resources:
   OrphanHunterFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/
-      Handler: app.lambda_handler
+      CodeUri: src/  
+      Handler: app.lambda_handler 
       Runtime: python3.12
-
+      Architectures:
+        - x86_64
       Policies:
         - AmazonEC2ReadOnlyAccess
         - SNSPublishMessagePolicy:
             TopicName: !GetAtt OrphanNotificationTopic.TopicName
-
       Environment:
         Variables:
           SNS_TOPIC_ARN: !Ref OrphanNotificationTopic
-
       Events:
         CheckSchedule:
           Type: Schedule
           Properties:
             Schedule: cron(0 9 * * ? *)
+            Name: DailyEBSScan
+            Description: Triggers the scan every day at 09:00 UTC
+
+Outputs:
+  OrphanHunterFunction:
+    Description: "Lambda Function ARN"
+    Value: !GetAtt OrphanHunterFunction.Arn
+  OrphanNotificationTopic:
+    Description: "SNS Topic ARN"
+    Value: !Ref OrphanNotificationTopic
