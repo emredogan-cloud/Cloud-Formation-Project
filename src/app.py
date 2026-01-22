@@ -27,27 +27,33 @@ def lambda_handler(event, context):
                 v_id = vol['VolumeId']
                 v_size = vol['Size']
                 orphan_volumes.append(v_id)
-                logger.info(f"BULUNDU: {v_id}")
+                logger.info(f"FOUND: {v_id}")
 
         if orphan_volumes and sns_topic_arn:
-            message_text = f"DIKKAT! {len(orphan_volumes)} adet sahipsiz disk bulundu:\n{orphan_volumes}\nLutfen bunlari silin."
+            volume_list_str = "\n".join(orphan_volumes)
             
-            sns.publish(
-                TopicArn= sns_topic_arn,
-                Message= message_text,
-                Subject='AWS Orphan Resource Raporu'
+            message_text = (
+                f"WARNING! {len(orphan_volumes)} Unclaimed EBS volumes detected in {region}.\n\n"
+                f"List of Volumes:\n{volume_list_str}\n\n"
+                "Please take action to delete or archive these resources."
             )
             
-            logger.info("SNS bildirimi gonderildi.")
+            sns.publish(
+                TopicArn=sns_topic_arn,
+                Message=message_text,
+                Subject=f'AWS Orphan Resource Report - {region}'
+            )
+            
+            logger.info(f"SNS notification sent to {sns_topic_arn}")
 
         return {
             'statusCode': 200,
             'body': json.dumps({
-                'message': 'Tarama bitti.',
+                'message': 'Scanning complete.',
                 'count': len(orphan_volumes)
             })
         }
 
     except ClientError as e:
-        logger.error(f"Hata: {e}")
+        logger.error(f"ERROR: {e}")
         return {'statusCode': 500, 'body': str(e)}
