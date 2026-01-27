@@ -1,18 +1,19 @@
-import boto3
-import logging
+from utils.logging import get_logger
+from utils.session import AWSSessionManager
 import os
 import json
 from botocore.exceptions import ClientError
 
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+logger = get_logger('Cloud' , 'DEBUG')
 
 def lambda_handler(event, context):
+    manager = AWSSessionManager.get_instance()
+
     region = os.environ.get('AWS_REGION', 'us-east-1')
     sns_topic_arn = os.environ.get('SNS_TOPIC_ARN')
 
-    ec2 = boto3.client('ec2', region_name=region)
-    sns = boto3.client('sns', region_name=region) 
+    ec2 = manager.get_client('ec2', region)
+    sns = manager.get_client('sns', region) 
     
     orphan_volumes = []
 
@@ -26,9 +27,18 @@ def lambda_handler(event, context):
             for vol in page.get('Volumes', []):
                 v_id = vol['VolumeId']
                 v_size = vol['Size']
+                CreateTime = vol['CreateTime']
                 orphan_volumes.append(v_id)
-                logger.info(f"FOUND: {v_id}")
-
+                logger.info(f"FOUND: {v_id} | ({v_size}GB) | {CreateTime} ")
+    except ClientError as e:
+        error_code = e.response['Error']['Code']
+        message = e.response['Error']['Message']
+        logger.error(f'AWS ERROR Could not list volumes: code{error_code} | message{message}')
+        return{
+            'statusCode':500,
+            'body':json.dumps({'error': 'Failed to retrieve volumes from EC2.'})
+        }
+    try:
         if orphan_volumes and sns_topic_arn:
             volume_list_str = "\n".join(orphan_volumes)
             
@@ -55,5 +65,7 @@ def lambda_handler(event, context):
         }
 
     except ClientError as e:
-        logger.error(f"ERROR: {e}")
+        error_code = e.response['Error']['Code']
+        message = e.response['Error']['Message']
+        logger.error(f'AWS ERROR: code{error_code} | message{message}')
         return {'statusCode': 500, 'body': str(e)}
