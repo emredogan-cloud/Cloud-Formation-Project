@@ -1,5 +1,7 @@
 # ☁️ AWS Orphan Resource Hunter (FinOps Bot)
 
+![CI Status](https://github.com/emredogan-cloud/Cloud-Formation-Project/actions/workflows/ci.yml/badge.svg)
+
 ![AWS](https://img.shields.io/badge/AWS-Serverless-orange) ![Python](https://img.shields.io/badge/Python-3.12-blue) ![License](https://img.shields.io/badge/License-MIT-green)
 
 This project is an **Event-Driven Serverless Application** designed to optimize AWS costs by automatically detecting unused (orphan) EBS volumes and alerting the engineering team via SNS (Email).
